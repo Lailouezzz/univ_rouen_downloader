@@ -37,4 +37,4 @@ or
 
 ## Windows
 
-TODO
+ffmpeg already included in repositery.
