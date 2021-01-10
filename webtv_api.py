@@ -4,6 +4,8 @@ import re
 import json
 import shutil
 import os
+import unicodedata
+from urllib.parse import unquote
 from dataclasses import dataclass
 from multiprocessing import Process
 from time import sleep
@@ -21,9 +23,26 @@ class VideoResource:
 @dataclass
 class Video:
     id: str
+    title: str
     duration: float
     available_resource: VideoResource
 
+
+def slugify(value, allow_unicode=False):
+    """
+    Taken from https://github.com/django/django/blob/master/django/utils/text.py
+    Convert to ASCII if 'allow_unicode' is False. Convert spaces or repeated
+    dashes to single dashes. Remove characters that aren't alphanumerics,
+    underscores, or hyphens. Convert to lowercase. Also strip leading and
+    trailing whitespace, dashes, and underscores.
+    """
+    value = str(value)
+    if allow_unicode:
+        value = unicodedata.normalize('NFKC', value)
+    else:
+        value = unicodedata.normalize('NFKD', value).encode('ascii', 'ignore').decode('ascii')
+    value = re.sub(r'[^\w\s-]', '', value.lower())
+    return re.sub(r'[-\s]+', '-', value).strip('-_')
 
 def download_file(url: str, file: str, ses=requests.session()):
     try:
@@ -57,6 +76,18 @@ def get_files_in_playlist(filename: str):
         files.append(line)
     return files
 
+def get_video_title(id: str, ses=requests.session()):
+    regex = "<title>(.*)</title>"
+    response = ses.get("https://webtv.univ-rouen.fr/permalink/{}/iframe/".format(id))
+
+    title = re.findall(regex, response.text)[0]
+
+    if title == None:
+        raise Exception("iframe page return invalid content")
+
+    return title
+
+
 def alives_process(process_list):
     i = 0
     for process in process_list:
@@ -71,6 +102,8 @@ def get_video_info(id: str, ses=requests.session()):
     if infos['success'] == False:
         print('Error: failed to parse {} infos maybe not logged successful'.format(id))
         return None
+
+    title = get_video_title(id, ses)
 
     sources = list()
     for sourcename in infos['names']:
@@ -94,7 +127,7 @@ def get_video_info(id: str, ses=requests.session()):
 
         sources.append(source)
     
-    return Video(id, infos['duration'], sources)
+    return Video(id, title, infos['duration'], sources)
 
 def parse_available_ids(htmlcontent: str):
     regex = "https://webtv.univ-rouen.fr/permalink/([a-z0-9]*)/"
@@ -122,7 +155,7 @@ def download_video(video: Video, ses=requests.session()):
 
     playlist_file = download_dir + url_to_filename(video.available_resource[resource_id].url)
     directory = playlist_file[:-5]
-    out_file = url_to_filename(video.available_resource[resource_id].url) + '.mp4'
+    out_file = slugify(video.title) + '.mp4'
     url_dir = url_parent_dir(video.available_resource[resource_id].url)
 
     try:
