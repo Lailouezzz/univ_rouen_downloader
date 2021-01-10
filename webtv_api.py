@@ -118,10 +118,20 @@ def parse_available_videos(htmlcontent: str, ses=requests.session()):
 
 def download_video(video: Video, ses=requests.session()):
     resource_id = 0 # TODO auto selection 0 is maybe 720p or the best resolution I don't know
-    playlist_file = url_to_filename(video.available_resource[resource_id].url)
+    download_dir = 'download/'
+
+    playlist_file = download_dir + url_to_filename(video.available_resource[resource_id].url)
     directory = playlist_file[:-5]
-    out_file = playlist_file[:-5] + '.mp4'
+    out_file = url_to_filename(video.available_resource[resource_id].url) + '.mp4'
     url_dir = url_parent_dir(video.available_resource[resource_id].url)
+
+    try:
+        os.mkdir(download_dir)
+    except FileExistsError:
+        if os.path.isfile(download_dir):
+            print("Error: {} is already a file".format(download_dir))
+            return False
+        pass
 
     try:
         os.mkdir(directory)
@@ -140,7 +150,7 @@ def download_video(video: Video, ses=requests.session()):
     for file in files:
         current_url = url_dir + file
 
-        process_list.append(Process(target=download_file, args=(current_url, file, ses,)))
+        process_list.append(Process(target=download_file, args=(current_url, download_dir + file, ses,)))
     
     i = 0
     while i < len(process_list):
