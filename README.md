@@ -17,6 +17,10 @@ The program first parse the videos, then download the stream files (m3u8 for the
 
 `python3 -m pip install requests`
 
+or
+
+`py -m pip install requests`
+
 ---
 
 ## Linux
