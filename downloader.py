@@ -85,6 +85,12 @@ def main():
 
     univses = univ_api.login_session(args.username, args.password)
 
+    try:
+        univses.cookies['AGIMUS']
+    except KeyError:
+        print('Error login please verify username and password')
+        exit()
+
     if args.gui:
         print('GUI mode')
         main_gui(univses)
