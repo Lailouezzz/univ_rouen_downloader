@@ -54,7 +54,8 @@ def main_gui(univses):
                     window['progbar'].update_bar((float(cur_status.value) / cur_status.max) * 1000)
             else:
                 #print('ALL FINISH')
-                window['infos'].update('DOWNLOADING COMPLETE !')
+                window['infos'].update('DOWNLOAD COMPLETE !')
+                window['progbar'].update_bar(0)
                 downloading = False
             continue
         

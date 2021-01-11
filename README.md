@@ -15,11 +15,11 @@ The program first parse the videos, then download the stream files (m3u8 for the
 
 `python >= 3.6`
 
-`python3 -m pip install requests`
+`python3 -m pip install requests pysimplegui`
 
 or
 
-`py -m pip install requests`
+`py -m pip install requests pysimplegui`
 
 ---
 
