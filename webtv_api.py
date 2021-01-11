@@ -45,7 +45,6 @@ def slugify(value, allow_unicode=False):
     return re.sub(r'[-\s]+', '-', value).strip('-_')
 
 def download_file(url: str, file: str, ses=requests.session()):
-    print('START')
     try:
         response = requests.get(url, stream=True)
         with open(file, 'wb') as out_file:
