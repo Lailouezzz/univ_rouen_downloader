@@ -27,6 +27,18 @@ class Video:
     duration: float
     available_resource: VideoResource
 
+class DownloadStatus:
+
+    def __init__(self, max=0):
+        self.max = max
+        self.value = 0
+
+    def inc(self):
+        self.value = self.value + 1
+
+    def add(self, n):
+        self.value = self.value + n
+
 
 def slugify(value, allow_unicode=False):
     """
@@ -148,13 +160,12 @@ def parse_available_videos(htmlcontent: str, ses=requests.session()):
     
     return videos
 
-def download_video(video: Video, ses=requests.session()):
+def download_video(video: Video, out_file: str, stat: DownloadStatus, ses=requests.session()):
     resource_id = 0 # TODO auto selection 0 is maybe 720p or the best resolution I don't know
     download_dir = 'download/'
 
     playlist_file = download_dir + url_to_filename(video.available_resource[resource_id].url)
     directory = playlist_file[:-5]
-    out_file = slugify(video.title) + '.mp4'
     url_dir = url_parent_dir(video.available_resource[resource_id].url)
 
     try:
@@ -177,6 +188,8 @@ def download_video(video: Video, ses=requests.session()):
     download_file(video.available_resource[resource_id].url, playlist_file, ses)
 
     files = get_files_in_playlist(playlist_file)
+
+    stat.max = len(files)
     
     args = (list(), list(), list())
 
@@ -191,12 +204,12 @@ def download_video(video: Video, ses=requests.session()):
     i = 0
     with concurrent.futures.ThreadPoolExecutor() as pool:
         for res in pool.map(download_file, args[0], args[1], args[2]):
-            print('Files : {}/{}'.format(i, len(args[0])), end='\r')
             if res != True:
                 print('Error when downloading ts files')
                 return False
+            stat.inc()
             i = i + 1
     
-    os.system('ffmpeg -i {} -acodec copy -vcodec copy {}'.format(playlist_file, out_file))
+    os.system('ffmpeg -y -i {} -acodec copy -vcodec copy {}'.format(playlist_file, out_file))
 
     return True
