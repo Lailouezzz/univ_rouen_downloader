@@ -5,9 +5,9 @@ import json
 import shutil
 import os
 import unicodedata
+import concurrent.futures
 from urllib.parse import unquote
 from dataclasses import dataclass
-from multiprocessing import Process
 from time import sleep
 from univ_api import *
 
@@ -45,6 +45,7 @@ def slugify(value, allow_unicode=False):
     return re.sub(r'[-\s]+', '-', value).strip('-_')
 
 def download_file(url: str, file: str, ses=requests.session()):
+    print('START')
     try:
         response = requests.get(url, stream=True)
         with open(file, 'wb') as out_file:
@@ -86,7 +87,6 @@ def get_video_title(id: str, ses=requests.session()):
         raise Exception("iframe page return invalid content")
 
     return title
-
 
 def alives_process(process_list):
     i = 0
@@ -178,25 +178,26 @@ def download_video(video: Video, ses=requests.session()):
     download_file(video.available_resource[resource_id].url, playlist_file, ses)
 
     files = get_files_in_playlist(playlist_file)
-    process_list = list()
+    
+    args = (list(), list(), list())
 
     for file in files:
         current_url = url_dir + file
 
-        process_list.append(Process(target=download_file, args=(current_url, download_dir + file, ses,)))
-    
+        args[0].append(current_url)
+        args[1].append(download_dir + file)
+        args[2].append(ses)
+
+
     i = 0
-    while i < len(process_list):
-        sleep(0.005)
-        if alives_process(process_list) < 32:
-            process_list[i].start()
-            print('{}/{}'.format(i, len(process_list)), end='\r')
+    with concurrent.futures.ThreadPoolExecutor() as pool:
+        for res in pool.map(download_file, args[0], args[1], args[2]):
+            print('Files : {}/{}'.format(i, len(args[0])), end='\r')
+            if res != True:
+                print('Error when downloading ts files')
+                return False
             i = i + 1
     
-    for process in process_list:
-        try:
-            process.join()
-        except:
-            pass
-
     os.system('ffmpeg -i {} -acodec copy -vcodec copy {}'.format(playlist_file, out_file))
+
+    return True
