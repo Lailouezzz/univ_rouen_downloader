@@ -16,6 +16,8 @@ Use this command line to login and show the GUI :
 
 `downloader.py [username] [password] [url]`
 
+/!\ USE CLI ONLY IF YOU HAVE REASON /!\
+
 ## Notes
 
 The program first parse the videos, then download the stream files (m3u8 for the playlist and ts for the video parts) and then use ffmpeg to join all video into one mp4 file.
