@@ -226,7 +226,7 @@ def download_resource(resource: VideoResource, out_file: str, stat: DownloadStat
             stat.inc()
             i = i + 1
 
-    os.system('ffmpeg -y -i {} -codec copy {}'.format(playlist_file, out_file))
+    os.system('ffmpeg -y -i {} -codec copy -loglevel panic -hide_banner {}'.format(playlist_file, out_file))
 
     return True
 
@@ -240,9 +240,9 @@ def download_video(video: Video, out_file: str, stat: DownloadStatus, ses=reques
                 stat.value = 0
                 audio_file = download_dir + slugify(video.title) + '.aac'
                 download_resource(resource, audio_file, stat, download_dir, ses) # TODO : Handle more codec
-                os.system('ffmpeg -y -i {} -i {} -codec copy -shortest {}'.format(video_file, audio_file, out_file))
+                os.system('ffmpeg -y -i {} -i {} -codec copy -shortest -loglevel panic -hide_banner {}'.format(video_file, audio_file, out_file))
                 os.remove(video_file)
                 os.remove(audio_file)
     else:
-        os.system('ffmpeg -y -i {} -codec copy {}'.format(video_file, out_file))
+        os.system('ffmpeg -y -i {} -codec copy -loglevel panic -hide_banner {}'.format(video_file, out_file))
         os.remove(video_file)
