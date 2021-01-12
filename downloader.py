@@ -39,7 +39,9 @@ def main_gui(univses):
             if cur_ind < len(cur_videos) and cur_task == None:
                 #print('CREATE TASK')
                 cur_status = webtv_api.DownloadStatus()
+
                 args = (cur_videos[cur_ind], webtv_api.slugify(cur_videos[cur_ind].title) + '.mp4', cur_status, univses)
+
                 cur_task = pool.apply_async(webtv_api.download_video, args)
                 window['infos'].update('DOWNLOADING {} of {} ({})'.format(cur_ind+1, len(cur_videos), cur_videos[cur_ind].title))
             elif cur_task != None and cur_task.ready():

@@ -24,6 +24,7 @@ class VideoResource:
 class Video:
     id: str
     title: str
+    layout: str
     duration: float
     available_resource: VideoResource
 
@@ -118,33 +119,51 @@ def get_video_info(id: str, ses=requests.session()):
 
     sources = list()
     for sourcename in infos['names']:
-        if sourcename == 'audio':
-            print('Warn: audio format not supported yet')
-            continue
+        tmpsource = infos[sourcename]
+        try:
+            infos[sourcename]['tracks']
+            if infos[sourcename]['tracks'] != None:
+                tmpsource = tmpsource['tracks'][0]
+        except:
+            tmpsource = tmpsource['resource']
+            if sourcename == 'audio':
+                print('Warn: audio format not supported yet')
+                continue
 
         try:
-            tmpsource = infos[sourcename]
 
-            if tmpsource['resource']['format'] != 'm3u8':
-                print('Warn: format {} not supported'.format(tmpsource['resource']['format']))
+            if tmpsource['format'] != 'm3u8':
+                print('Warn: format {} not supported'.format(tmpsource['format']))
 
-            source = VideoResource(sourcename, tmpsource['resource']['url'],
-                tmpsource['resource']['format'],
-                tmpsource['resource']['bitrate'],
-                (tmpsource['resource']['width'],
-                tmpsource['resource']['height']))
+            try:
+                source = VideoResource(sourcename, tmpsource['url'],
+                    tmpsource['format'],
+                    tmpsource['bitrate'],
+                    (tmpsource['width'],
+                    tmpsource['height']))
+            except:
+                source = VideoResource(sourcename, tmpsource['url'],
+                    tmpsource['format'],
+                    tmpsource['bitrate'],
+                    (0, 0))
+
         except:
             pass
 
         sources.append(source)
     
-    return Video(id, title, infos['duration'], sources)
+    return Video(id, title, infos['layout'], infos['duration'], sources)
 
 def parse_available_ids(htmlcontent: str):
     regex = "https://webtv.univ-rouen.fr/permalink/([a-z0-9]*)/"
 
     # This remove duplicate
     ids = list(set(re.findall(regex, htmlcontent)))
+
+    regex = "&mediaid=([a-z0-9]*)\""
+
+    # This remove duplicate
+    ids = ids + list(set(re.findall(regex, htmlcontent)))
 
     return ids
 
@@ -160,13 +179,10 @@ def parse_available_videos(htmlcontent: str, ses=requests.session()):
     
     return videos
 
-def download_video(video: Video, out_file: str, stat: DownloadStatus, ses=requests.session()):
-    resource_id = 0 # TODO auto selection 0 is maybe 720p or the best resolution I don't know
-    download_dir = 'download/'
-
-    playlist_file = download_dir + url_to_filename(video.available_resource[resource_id].url)
-    directory = playlist_file[:-5]
-    url_dir = url_parent_dir(video.available_resource[resource_id].url)
+def download_resource(resource: VideoResource, out_file: str, stat: DownloadStatus, download_dir='download/', ses=requests.session()):
+    playlist_file = download_dir + url_to_filename(resource.url)
+    directory = playlist_file.split('.')[0]
+    url_dir = url_parent_dir(resource.url)
 
     try:
         os.mkdir(download_dir)
@@ -185,7 +201,7 @@ def download_video(video: Video, out_file: str, stat: DownloadStatus, ses=reques
         pass
 
     # Download the playlist file
-    download_file(video.available_resource[resource_id].url, playlist_file, ses)
+    download_file(resource.url, playlist_file, ses)
 
     files = get_files_in_playlist(playlist_file)
 
@@ -209,7 +225,24 @@ def download_video(video: Video, out_file: str, stat: DownloadStatus, ses=reques
                 return False
             stat.inc()
             i = i + 1
-    
-    os.system('ffmpeg -y -i {} -acodec copy -vcodec copy {}'.format(playlist_file, out_file))
+
+    os.system('ffmpeg -y -i {} -codec copy {}'.format(playlist_file, out_file))
 
     return True
+
+def download_video(video: Video, out_file: str, stat: DownloadStatus, ses=requests.session(), download_dir='download/'):
+    video_file = download_dir + slugify(video.title) + '.mp4'
+    download_resource(video.available_resource[0], video_file, stat, download_dir, ses)
+
+    if video.layout == 'composition':
+        for resource in video.available_resource:
+            if resource.name == 'audio':
+                stat.value = 0
+                audio_file = download_dir + slugify(video.title) + '.aac'
+                download_resource(resource, audio_file, stat, download_dir, ses) # TODO : Handle more codec
+                os.system('ffmpeg -y -i {} -i {} -codec copy -shortest {}'.format(video_file, audio_file, out_file))
+                os.remove(video_file)
+                os.remove(audio_file)
+    else:
+        os.system('ffmpeg -y -i {} -codec copy {}'.format(video_file, out_file))
+        os.remove(video_file)
