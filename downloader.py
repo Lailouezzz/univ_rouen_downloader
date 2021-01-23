@@ -40,7 +40,7 @@ def main_gui(univses):
                 #print('CREATE TASK')
                 cur_status = webtv_api.DownloadStatus()
 
-                args = (cur_videos[cur_ind], webtv_api.slugify(cur_videos[cur_ind].title) + '.mp4', cur_status, univses)
+                args = (cur_videos[cur_ind], webtv_api.slugify(cur_videos[cur_ind].title), cur_status, univses)
 
                 cur_task = pool.apply_async(webtv_api.download_video, args)
                 window['infos'].update('DOWNLOADING {} of {} ({})'.format(cur_ind+1, len(cur_videos), cur_videos[cur_ind].title))
@@ -107,7 +107,7 @@ def main():
         for video in videos:
             print("Downloading {}...".format(video.title))
             cur_status = webtv_api.DownloadStatus()
-            args = (video, webtv_api.slugify(video.title) + '.mp4', cur_status, univses)
+            args = (video, webtv_api.slugify(video.title), cur_status, univses)
             with ThreadPool(processes=1) as pool:
                 async_result = pool.apply_async(webtv_api.download_video, args)
                 while async_result.ready() != True:

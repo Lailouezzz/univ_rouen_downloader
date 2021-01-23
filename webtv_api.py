@@ -133,7 +133,7 @@ def get_video_info(id: str, ses=requests.session()):
 
         try:
 
-            if tmpsource['format'] != 'm3u8':
+            if tmpsource['format'] != 'm3u8' and tmpsource['format'] != 'webm':
                 print('Warn: format {} not supported'.format(tmpsource['format']))
 
             try:
@@ -181,8 +181,8 @@ def parse_available_videos(htmlcontent: str, ses=requests.session()):
     return videos
 
 def download_resource(resource: VideoResource, out_file: str, stat: DownloadStatus, download_dir='download/', ses=requests.session()):
-    playlist_file = download_dir + url_to_filename(resource.url)
-    directory = playlist_file.split('.')[0]
+    origin_file = download_dir + url_to_filename(resource.url)
+    directory = origin_file.split('.')[0]
     url_dir = url_parent_dir(resource.url)
 
     try:
@@ -201,38 +201,48 @@ def download_resource(resource: VideoResource, out_file: str, stat: DownloadStat
             return False
         pass
 
-    # Download the playlist file
-    download_file(resource.url, playlist_file, ses)
+    # Download the playlist or video file
+    download_file(resource.url, origin_file, ses)
 
-    files = get_files_in_playlist(playlist_file)
+    if resource.format == 'm3u8':
 
-    stat.max = len(files)
-    
-    args = (list(), list(), list())
+        files = get_files_in_playlist(origin_file)
 
-    for file in files:
-        current_url = url_dir + file
+        stat.max = len(files)
+        
+        args = (list(), list(), list())
 
-        args[0].append(current_url)
-        args[1].append(download_dir + file)
-        args[2].append(ses)
+        for file in files:
+            current_url = url_dir + file
+
+            args[0].append(current_url)
+            args[1].append(download_dir + file)
+            args[2].append(ses)
 
 
-    i = 0
-    with concurrent.futures.ThreadPoolExecutor() as pool:
-        for res in pool.map(download_file, args[0], args[1], args[2]):
-            if res != True:
-                print('Error when downloading ts files')
-                return False
-            stat.inc()
-            i = i + 1
+        i = 0
+        with concurrent.futures.ThreadPoolExecutor() as pool:
+            for res in pool.map(download_file, args[0], args[1], args[2]):
+                if res != True:
+                    print('Error when downloading ts files')
+                    return False
+                stat.inc()
+                i = i + 1
 
-    os.system('ffmpeg -y -i {} -codec copy -loglevel panic -hide_banner {}'.format(playlist_file, out_file))
+        os.system('ffmpeg -y -i {} -codec copy -loglevel panic -hide_banner {}'.format(origin_file, out_file))
+    elif resource.format == 'webm':
+        os.system('ffmpeg -y -i {} -codec copy -loglevel panic -hide_banner {}'.format(origin_file, out_file))
 
     return True
 
 def download_video(video: Video, out_file: str, stat: DownloadStatus, ses=requests.session(), download_dir='download/'):
-    video_file = download_dir + slugify(video.title) + '.mp4'
+    video_file = download_dir + slugify(video.title)
+    if video.available_resource[0].format == 'm3u8':
+        video_file = video_file + '.mp4'
+        out_file = out_file + '.mp4'
+    elif video.available_resource[0].format == 'webm':
+        video_file = video_file + '.webm'
+        out_file = out_file + '.webm'
     download_resource(video.available_resource[0], video_file, stat, download_dir, ses)
 
     if video.layout == 'composition' or len(subprocess.check_output(['ffprobe', '-i', video_file, '-show_streams', '-select_streams', 'a', '-loglevel', 'error'])) == 0:
