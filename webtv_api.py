@@ -4,6 +4,7 @@ import re
 import json
 import shutil
 import os
+import subprocess
 import unicodedata
 import concurrent.futures
 from urllib.parse import unquote
@@ -234,7 +235,7 @@ def download_video(video: Video, out_file: str, stat: DownloadStatus, ses=reques
     video_file = download_dir + slugify(video.title) + '.mp4'
     download_resource(video.available_resource[0], video_file, stat, download_dir, ses)
 
-    if video.layout == 'composition':
+    if video.layout == 'composition' or len(subprocess.check_output(['ffprobe', '-i', video_file, '-show_streams', '-select_streams', 'a', '-loglevel', 'error'])) == 0:
         for resource in video.available_resource:
             if resource.name == 'audio':
                 stat.value = 0
@@ -243,6 +244,7 @@ def download_video(video: Video, out_file: str, stat: DownloadStatus, ses=reques
                 os.system('ffmpeg -y -i {} -i {} -codec copy -shortest -loglevel panic -hide_banner {}'.format(video_file, audio_file, out_file))
                 os.remove(video_file)
                 os.remove(audio_file)
+                break
     else:
         os.system('ffmpeg -y -i {} -codec copy -loglevel panic -hide_banner {}'.format(video_file, out_file))
         os.remove(video_file)
